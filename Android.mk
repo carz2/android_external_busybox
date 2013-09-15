@@ -18,6 +18,7 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES := $(shell cat $(BB_PATH)/android/librpc.sources)
 LOCAL_C_INCLUDES := $(BB_PATH)/android/librpc
 LOCAL_MODULE := libuclibcrpc
+LOCAL_CFLAGS += -fno-strict-aliasing
 include $(BUILD_STATIC_LIBRARY)
 
 
@@ -26,12 +27,13 @@ include $(CLEAR_VARS)
 
 # Each profile require a compressed usage/config, outside the source tree for git history
 # We keep the uncompressed headers in local include-<profile> to track config changes.
+# TODO: generate includes in out/
 
-BB_INCLUDES_OUT := $(TARGET_OUT_INTERMEDIATES)/include
-$(BB_INCLUDES_OUT):
-	mkdir -p $(ANDROID_BUILD_TOP)/$(BB_INCLUDES_OUT)
+# BB_INCLUDES_OUT := $(TARGET_OUT_INTERMEDIATES)/include
+# $(BB_INCLUDES_OUT):
+#	mkdir -p $(ANDROID_BUILD_TOP)/$(BB_INCLUDES_OUT)
 
-# Execute make clean, make prepare and copy profiles required for normal & static busybox (recovery)
+# Execute make clean, make prepare and copy profiles required for normal & static lib (recovery)
 
 KERNEL_MODULES_DIR ?= /system/lib/modules
 BUSYBOX_CONFIG := minimal full
@@ -44,8 +46,6 @@ $(BUSYBOX_CONFIG):
 	@#cp $(BB_PATH)/.config $(BB_PATH)/.config-$@
 	@mkdir -p $(BB_PATH)/include-$@
 	cp $(BB_PATH)/include/*.h $(BB_PATH)/include-$@/
-	@mkdir -p $(BB_INCLUDES_OUT)/busybox-$@
-	@cp $(BB_PATH)/include/*.h $(BB_INCLUDES_OUT)/busybox-$@/
 	@rm $(BB_PATH)/include/usage_compressed.h
 	@rm $(BB_PATH)/include/autoconf.h
 	@rm -f $(BB_PATH)/.config-old
@@ -87,7 +87,6 @@ ifeq ($(TARGET_ARCH),mips)
 endif
 
 BUSYBOX_C_INCLUDES = \
-	$(BB_INCLUDES_OUT)/busybox-$(BUSYBOX_CONFIG) \
 	$(BB_PATH)/include-$(BUSYBOX_CONFIG) \
 	$(BB_PATH)/include $(BB_PATH)/libbb \
 	bionic/libc/private \
@@ -101,6 +100,7 @@ BUSYBOX_CFLAGS = \
 	-Werror=implicit \
 	-DNDEBUG \
 	-DANDROID \
+	-fno-strict-aliasing \
 	-include include-$(BUSYBOX_CONFIG)/autoconf.h \
 	-D'CONFIG_DEFAULT_MODULES_DIR="$(KERNEL_MODULES_DIR)"' \
 	-D'BB_VER="$(strip $(shell $(SUBMAKE) kernelversion)) $(BUSYBOX_SUFFIX)"' -DBB_BT=AUTOCONF_TIMESTAMP
@@ -146,6 +146,7 @@ LOCAL_SRC_FILES += android/libc/__set_errno.c
 endif
 LOCAL_C_INCLUDES := $(BUSYBOX_C_INCLUDES)
 LOCAL_CFLAGS := $(BUSYBOX_CFLAGS)
+LOCAL_LDFLAGS += -Wl,--no-fatal-warnings
 LOCAL_MODULE := busybox
 LOCAL_MODULE_TAGS := eng debug
 LOCAL_MODULE_PATH := $(TARGET_OUT_OPTIONAL_EXECUTABLES)
@@ -191,6 +192,7 @@ LOCAL_CFLAGS += \
   -Dgetmntent=busybox_getmntent \
   -Dgetmntent_r=busybox_getmntent_r \
   -Dgenerate_uuid=busybox_generate_uuid
+LOCAL_LDFLAGS += -Wl,--no-fatal-warnings
 LOCAL_FORCE_STATIC_EXECUTABLE := true
 LOCAL_MODULE := static_busybox
 LOCAL_MODULE_STEM := busybox
